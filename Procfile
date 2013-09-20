@@ -1,0 +1,1 @@
+web: aws-sns-hipchat
