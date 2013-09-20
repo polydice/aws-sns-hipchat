@@ -56,6 +56,10 @@ func (h HipChatSender) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
   if s := n.SubscribeURL; len(s) != 0 {
     fmt.Printf("SubscribeURL detected: %v\n", s)
+
+    if _, err := http.Get(s); err != nil {
+      fmt.Printf("Subscribe error: %v\n", err)
+    }
   }
 
   if len(n.Message) != 0 && len(n.Subject) != 0 {
