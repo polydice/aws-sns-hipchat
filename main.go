@@ -14,6 +14,7 @@ type Notification struct {
   Signature string
   SignatureVersion string
   SigningCertURL string
+  SubscribeURL string
   Subject string
   Timestamp string
   TopicArn string
@@ -52,6 +53,10 @@ func (h HipChatSender) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   }
 
   fmt.Printf("Received notification room_id:%v notification:%+v\n", room_id, n)
+
+  if s := n.SubscribeURL; len(s) != 0 {
+    fmt.Printf("SubscribeURL detected: %v\n", s)
+  }
 
   if len(n.Message) != 0 && len(n.Subject) != 0 {
     err := h.SendMessage(room_id, fmt.Sprintf("%v: %v", n.Subject, n.Message))
