@@ -103,6 +103,12 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	job_name := args["job_name"]
 
 	var n AutoScalingNotification
+
+	defer r.Body.Close()
+
+	content, _ := ioutil.ReadAll(r.Body)
+	fmt.Printf("%s\n", string(content))
+
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&n)
 
