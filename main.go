@@ -49,6 +49,8 @@ func TriggerJob(job_name string, n Notification) {
 	apiUrl := "http://jenkins.ifeelgoods.com/buildByToken/build?job=" + job_name
 
 	data := url.Values{}
+	data.Add("token", jenkins_token)
+
 	data.Add("Message", n.Message)
 	data.Add("Subject", n.Subject)
 
@@ -122,10 +124,14 @@ func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h Hi
   }
 }
 
+var jenkins_token string
+
 func main() {
 	fmt.Println("Starting aws-sns proxy server.")
 	m := martini.Classic()
 	h := HipChatSender{AuthToken: os.Getenv("HIPCHAT_AUTH_TOKEN")}
+	jenkins_token = os.Getenv("JENKINS_TOKEN")
+
 	m.Map(h)
 
 	m.Post("/sns/hipchat/:room_id", ServeHTTP)
