@@ -49,6 +49,8 @@ type AutoScalingNotification struct {
 	UnsubscribeURL string `url:"UnsubscribeURL"`
 	SubscribeURL string `url:"SubscribeURL"`
 	Token string `url:"token"`
+	Signature string
+	SignatureVersion string
 }
 
 type HipChatSender struct{
