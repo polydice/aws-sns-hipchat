@@ -1,12 +1,15 @@
 package main
 
 import (
-  "github.com/andybons/hipchat"
-  "github.com/go-martini/martini"
-  "encoding/json"
-  "fmt"
-  "net/http"
-  "os"
+	"github.com/andybons/hipchat"
+	"github.com/go-martini/martini"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"bytes"
+	"strconv"
 )
 
 type Notification struct {
@@ -39,6 +42,53 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
   }
 
   return c.PostMessage(req)
+}
+
+func TriggerJob(job_name string, n Notification) {
+
+	apiUrl := "http://jenkins.ifeelgoods.com/buildByToken/build?job=" + job_name
+
+	data := url.Values{}
+	data.Add("Message", n.Message)
+	data.Add("Subject", n.Subject)
+
+	u, _ := url.ParseRequestURI(apiUrl)
+	urlStr := fmt.Sprintf("%v", u)
+
+	fmt.Printf("%v\n", urlStr)
+
+	client := &http.Client{}
+	r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode())) // <-- URL-encoded payload
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	resp, _ := client.Do(r)
+	fmt.Println(resp.Status)
+}
+
+func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
+	job_name := args["job_name"]
+
+	var n Notification
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&n)
+
+	if (err != nil) {
+		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("Received notification job_name:%v notification:%+v\n", job_name, n)
+
+	if s := n.SubscribeURL; len(s) != 0 {
+		fmt.Printf("SubscribeURL detected: %v\n", s)
+
+		if _, err := http.Get(s); err != nil {
+			fmt.Printf("Subscribe error: %v\n", err)
+		}
+	}
+
+	TriggerJob(job_name, n)
 }
 
 func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h HipChatSender) {
@@ -79,5 +129,6 @@ func main() {
 	m.Map(h)
 
 	m.Post("/sns/hipchat/:room_id", ServeHTTP)
+	m.Post("/sns/jenkins/:job_name", SnsJenkins)
 	m.Run()
 }
