@@ -46,11 +46,7 @@ type AutoScalingNotification struct {
 	Progress string `url:"Progress"`
 	EC2InstanceId string `url:"EC2InstanceId"`
 	Details string `url:"Details"`
-	UnsubscribeURL string `url:"UnsubscribeURL"`
-	SubscribeURL string `url:"SubscribeURL"`
 	Token string `url:"token"`
-	Signature string
-	SignatureVersion string
 }
 
 type HipChatSender struct{
@@ -102,24 +98,33 @@ func TriggerJob(job_name string, n AutoScalingNotification) {
 func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	job_name := args["job_name"]
 
-	var n AutoScalingNotification
-
-	defer r.Body.Close()
-
-	content, _ := ioutil.ReadAll(r.Body)
-	fmt.Printf("%s\n", string(content))
+	var notif Notification
+	var autoScalNotif AutoScalingNotification
 
 	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(&n)
+	err := dec.Decode(&notif)
 
 	if (err != nil) {
+		content, _ := ioutil.ReadAll(r.Body)
+		fmt.Printf("%s\n", string(content))
+
 		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Printf("Received notification job_name:%v notification:%+v\n", job_name, n)
+	message_byte := []byte(notif.Message)
+	err = json.Unmarshal(message_byte, &autoScalNotif)
 
-	if s := n.SubscribeURL; len(s) != 0 {
+	if (err != nil) {
+		fmt.Printf("%s\n", notif.Message)
+
+		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("Received notification job_name:%v notification:%+v\n", job_name, autoScalNotif)
+
+	if s := notif.SubscribeURL; len(s) != 0 {
 		fmt.Printf("SubscribeURL detected: %v\n", s)
 
 		if _, err := http.Get(s); err != nil {
@@ -127,10 +132,10 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if n.Event == "autoscaling:EC2_INSTANCE_LAUNCH" {
-		TriggerJob(job_name, n)
+	if autoScalNotif.Event == "autoscaling:EC2_INSTANCE_LAUNCH" {
+		TriggerJob(job_name, autoScalNotif)
 	}else{
-		fmt.Printf("Trigger error, this is not the right event to launch an ec2 instance: %v\n", n.Event )
+		fmt.Printf("Trigger error, this is not the right event to launch an ec2 instance: %v\n", autoScalNotif.Event )
 	}
 }
 
