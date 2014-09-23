@@ -2,6 +2,7 @@ package main
 
 import (
   "github.com/andybons/hipchat"
+  "github.com/go-martini/martini"
   "encoding/json"
   "fmt"
   "net/http"
@@ -40,8 +41,8 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
   return c.PostMessage(req)
 }
 
-func (h HipChatSender) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-  room_id := r.URL.Path[1:]
+func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h HipChatSender) {
+  room_id := args["room_id"]
 
   var n Notification
   dec := json.NewDecoder(r.Body)
@@ -72,8 +73,11 @@ func (h HipChatSender) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-  fmt.Println("Starting aws-sns-hipchat server.")
+	fmt.Println("Starting aws-sns proxy server.")
+	m := martini.Classic()
+	h := HipChatSender{AuthToken: os.Getenv("HIPCHAT_AUTH_TOKEN")}
+	m.Map(h)
 
-  h := HipChatSender{AuthToken: os.Getenv("HIPCHAT_AUTH_TOKEN")}
-  http.ListenAndServe(":"+os.Getenv("PORT"), h)
+	m.Post("/sns/hipchat/:room_id", ServeHTTP)
+	m.Run()
 }
