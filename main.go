@@ -119,7 +119,11 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	TriggerJob(job_name, n)
+	if n.Event == "autoscaling:EC2_INSTANCE_LAUNCH" {
+		TriggerJob(job_name, n)
+	}else{
+		fmt.Printf("Trigger error, this is not the right event to launch an ec2 instance: %v\n", n.Event )
+	}
 }
 
 func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h HipChatSender) {
