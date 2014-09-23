@@ -10,6 +10,8 @@ import (
 	"os"
 	"bytes"
 	"strconv"
+	"io/ioutil"
+	"github.com/google/go-querystring/query"
 )
 
 type Notification struct {
@@ -24,6 +26,29 @@ type Notification struct {
   TopicArn string
   Type string
   UnsubscribeURL string
+}
+
+type AutoScalingNotification struct {
+	Service string `url:"Service"`
+	Time string `url:"Time"`
+	RequestId string `url:"RequestId"`
+	Event string `url:"Event"`
+	AccountId string `url:"AccountId"`
+	AutoScalingGroupName string `url:"AutoScalingGroupName"`
+	AutoScalingGroupARN string `url:"AutoScalingGroupARN"`
+	ActivityId string `url:"ActivityId"`
+	Description string `url:"Description"`
+	Cause string `url:"Cause"`
+	StartTime string `url:"StartTime"`
+	EndTime string `url:"EndTime"`
+	StatusCode string `url:"StatusCode"`
+	StatusMessage string `url:"StatusMessage"`
+	Progress string `url:"Progress"`
+	EC2InstanceId string `url:"EC2InstanceId"`
+	Details string `url:"Details"`
+	UnsubscribeURL string `url:"UnsubscribeURL"`
+	SubscribeURL string `url:"SubscribeURL"`
+	Token string `url:"token"`
 }
 
 type HipChatSender struct{
@@ -44,15 +69,14 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
   return c.PostMessage(req)
 }
 
-func TriggerJob(job_name string, n Notification) {
+func TriggerJob(job_name string, n AutoScalingNotification) {
 
-	apiUrl := "http://jenkins.ifeelgoods.com/buildByToken/build?job=" + job_name
+	apiUrl := "http://jenkins.ifeelgoods.com/buildByToken/buildWithParameters?job=" + job_name
 
-	data := url.Values{}
-	data.Add("token", jenkins_token)
+	n.Token = jenkins_token
 
-	data.Add("Message", n.Message)
-	data.Add("Subject", n.Subject)
+	v, _ := query.Values(n)
+	data := v.Encode()
 
 	u, _ := url.ParseRequestURI(apiUrl)
 	urlStr := fmt.Sprintf("%v", u)
@@ -60,18 +84,23 @@ func TriggerJob(job_name string, n Notification) {
 	fmt.Printf("%v\n", urlStr)
 
 	client := &http.Client{}
-	r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data.Encode())) // <-- URL-encoded payload
+	r, _ := http.NewRequest("POST", urlStr, bytes.NewBufferString(data)) // <-- URL-encoded payload
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+	r.Header.Add("Content-Length", strconv.Itoa(len(data)))
 
 	resp, _ := client.Do(r)
 	fmt.Println(resp.Status)
+
+	defer resp.Body.Close()
+
+	content, _ := ioutil.ReadAll(resp.Body)
+	fmt.Printf("%s\n", string(content))
 }
 
 func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	job_name := args["job_name"]
 
-	var n Notification
+	var n AutoScalingNotification
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&n)
 
