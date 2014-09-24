@@ -43,7 +43,7 @@ type AutoScalingNotification struct {
 	EndTime string `url:"EndTime"`
 	StatusCode string `url:"StatusCode"`
 	StatusMessage string `url:"StatusMessage"`
-	Progress string `url:"Progress"`
+	Progress int `url:"Progress"`
 	EC2InstanceId string `url:"EC2InstanceId"`
 	Details string `url:"Details"`
 	Token string `url:"token"`
