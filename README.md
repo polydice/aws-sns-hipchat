@@ -35,9 +35,9 @@ heroku config:add JENKINS_URL=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ```
 
-## Missing feature
+## Signatures
 
-Verify signature
+Signature of the messages send to jenkins are verified.
 
 ## Contact
 
