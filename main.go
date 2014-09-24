@@ -19,6 +19,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"log"
+	"strings"
 )
 
 type Notification struct {
@@ -78,10 +79,26 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
 func CheckSignature(certUrl string, signature_64 string, raw_string string) bool {
 
 	// This will use https and so verify that the certificate comes from Amazon
-	resp, err := http.Get(certUrl)
+	urlParsed, err := url.Parse(certUrl)
 	if err != nil {
 		fmt.Println(err)
 		return false
+	}
+
+	domain := strings.Split(urlParsed.Host, ":")[0]
+	top_domains := strings.Split(domain, ".")
+	nb_domain_part := len(top_domains)
+
+	if (top_domains[nb_domain_part-1] == "com") && (top_domains[nb_domain_part-2] == "amazonaws") {
+		fmt.Printf("Domain verified\n")
+	} else {
+		fmt.Printf("Domain invalid%s\n", top_domains)
+		return false
+	}
+
+	resp, err := http.Get(certUrl)
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	defer resp.Body.Close()
@@ -120,12 +137,12 @@ func CheckSignature(certUrl string, signature_64 string, raw_string string) bool
 	// Verify
 	pub := certificate.PublicKey.(*rsa.PublicKey)
 
-	fmt.Println(certificate.Signature)
-
 	err = rsa.VerifyPKCS1v15(pub, crypto.SHA1, h.Sum(nil), []byte(signature))
 	if err != nil {
 		log.Fatal(err)
 		return false
+	} else {
+		fmt.Printf("Succeed to verify the signature")
 	}
 
 	return true
