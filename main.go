@@ -107,6 +107,7 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	if (err != nil) {
 		content, _ := ioutil.ReadAll(r.Body)
 		fmt.Printf("%s\n", string(content))
+		fmt.Println(err)
 
 		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
 		return
@@ -148,7 +149,8 @@ func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h Hi
   err := dec.Decode(&n)
 
   if (err != nil) {
-    http.Error(w, "Invalid JSON.", http.StatusBadRequest)
+	fmt.Println(err)
+	http.Error(w, "Invalid JSON.", http.StatusBadRequest)
     return
   }
 
