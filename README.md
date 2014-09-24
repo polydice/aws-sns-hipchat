@@ -1,16 +1,17 @@
 aws-sns-hipchat
 ===============
 
-A simple AWS SNS HTTP(s) endpoint to send notification to HipChat chatroom. 
+A simple AWS SNS HTTP(s) endpoint to send notification to HipChat chatroom or Jenkins Job.
 
 ## Features
 
 * Designed to run on Heroku
 * Automatically confirm subscription
 * Send notifications to multiple chatrooms
+* Send notifications to multiple Jenkins Jobs.
 * Heroku-compatible logs for every notification and subscribe confirmation
 
-The HTTP(s) API is `http://aws-sns-hipchat.herokuapp.com/ROOM_ID`, which could be used to register as endpoints on SNS.
+The HTTP(s) API are `http://aws-sns-hipchat.herokuapp.com/sns/hipchat/ROOM_ID` and `http://aws-sns-hipchat.herokuapp.com/sns/jenkins/JOB_NAME`, which could be used to register as endpoints on SNS.
 
 ## Heroku Deployment
 
@@ -24,11 +25,19 @@ If you're not familiar with using Go on Heroku, check [Getting Started with Go o
 
 ## Configuration
 
-To make this app up and work properly, you need to set an environment variable `HIPCHAT_AUTH_TOKEN` as your API auth token of HipChat:
+To make this app up and work properly, you need to set an environment variable `HIPCHAT_AUTH_TOKEN` as your API auth token of HipChat.
+If you wish to use jenkins, se also `JENKINS_TOKEN` and `JENKINS_URL`.
 
 ```bash
 heroku config:add HIPCHAT_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+heroku config:add JENKINS_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+heroku config:add JENKINS_URL=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
 ```
+
+## Missing feature
+
+Verify signature
 
 ## Contact
 
