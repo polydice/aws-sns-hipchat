@@ -12,6 +12,13 @@ import (
 	"strconv"
 	"io/ioutil"
 	"github.com/google/go-querystring/query"
+	"encoding/pem"
+	"crypto/x509"
+	"encoding/base64"
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha1"
+	"log"
 )
 
 type Notification struct {
@@ -65,6 +72,86 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
   }
 
   return c.PostMessage(req)
+}
+
+
+func CheckSignature(certUrl string, signature_64 string, raw_string string) bool {
+
+	// This will use https and so verify that the certificate comes from Amazon
+	resp, err := http.Get(certUrl)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	defer resp.Body.Close()
+
+	pemPublicKey, _ := ioutil.ReadAll(resp.Body)
+	fmt.Printf("%s\n", string(pemPublicKey))
+
+	// Parse public key into rsa.PublicKey
+	PEMBlock, _ := pem.Decode([]byte(pemPublicKey))
+	if PEMBlock == nil {
+		log.Fatal("Could not parse Public Key PEM")
+	}
+	if PEMBlock.Type != "CERTIFICATE" {
+		fmt.Printf("%s\n", PEMBlock.Type)
+		log.Fatal("Found wrong key type")
+	}
+
+	certificate, err := x509.ParseCertificate(PEMBlock.Bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	signature, err := base64.StdEncoding.DecodeString(signature_64)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	h := sha1.New()
+	h.Write([]byte(raw_string))
+
+	// Verify
+	pub := certificate.PublicKey.(*rsa.PublicKey)
+
+	fmt.Println(certificate.Signature)
+
+	err = rsa.VerifyPKCS1v15(pub, crypto.SHA1, h.Sum(nil), []byte(signature))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+
+	return true
+}
+
+func VerifyNotification(n Notification) {
+	signString := fmt.Sprintf(`Message
+%v
+MessageId
+%v`, n.Message, n.MessageId)
+
+	if n.Subject != "" {
+		signString = signString + fmt.Sprintf(`
+Subject
+%v`, n.Subject)
+	}
+
+	signString = signString + fmt.Sprintf(`
+Timestamp
+%v
+TopicArn
+%v
+Type
+%v
+`, n.Timestamp, n.TopicArn, n.Type)
+
+	certUrl := "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-d6d679a1d18e95c2f9ffcf11f4f9e198.pem"
+	signature := "br3KcAFiJ6+o4J3JOFtVo/84osp/i3UOh8SRwCoa95vhNyrxtCD/WDi/gxGUv0Kuh4Y5VQJcvzP/KOSCzYRS3jY2RNgV1unIso+FrE3PDFO9SLjF5mcUwReV7jwGSGEovC+lveew6jqas4/hboJGheZCiFCjFSNnW4FPx2iOXLcNMTp+6uHZGF2rwoB+FO2qyNuKQmRM4rAeKlOvC/yaoBIwVbjYpD4EPjnibLfZyV8CGua7uHLnano4fdZKsJ0L4oIwXWTI+e19WlmtipA+gkl152/oFX+wwqUjahTnnyOD3XDW6XxK1fiOJEquAhaUJVBhtZNyQI3SyC955Irz8g=="
+
+
+	fmt.Sprintln(CheckSignature(certUrl, signature, signString))
 }
 
 func TriggerJob(job_name string, n AutoScalingNotification) {
