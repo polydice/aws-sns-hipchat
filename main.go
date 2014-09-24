@@ -69,7 +69,7 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
 
 func TriggerJob(job_name string, n AutoScalingNotification) {
 
-	apiUrl := "http://jenkins.ifeelgoods.com/buildByToken/buildWithParameters?job=" + job_name
+	apiUrl := jenkins_url + "/buildByToken/buildWithParameters?job=" + job_name
 
 	n.Token = jenkins_token
 
@@ -116,6 +116,9 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(message_byte, &autoScalNotif)
 
 	if (err != nil) {
+		content, _ := ioutil.ReadAll(r.Body)
+		fmt.Printf("%s\n", string(content))
+
 		fmt.Printf("%s\n", notif.Message)
 
 		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
@@ -171,13 +174,14 @@ func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h Hi
 }
 
 var jenkins_token string
+var jenkins_url string
 
 func main() {
 	fmt.Println("Starting aws-sns proxy server.")
 	m := martini.Classic()
 	h := HipChatSender{AuthToken: os.Getenv("HIPCHAT_AUTH_TOKEN")}
 	jenkins_token = os.Getenv("JENKINS_TOKEN")
-
+	jenkins_url = os.Getenv("JENKINS_URL")
 	m.Map(h)
 
 	m.Post("/sns/hipchat/:room_id", ServeHTTP)
