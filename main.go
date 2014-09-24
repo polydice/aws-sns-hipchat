@@ -81,6 +81,7 @@ func CheckSignature(certUrl string, signature_64 string, raw_string string) bool
 	resp, err := http.Get(certUrl)
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
 
 	defer resp.Body.Close()
@@ -92,21 +93,25 @@ func CheckSignature(certUrl string, signature_64 string, raw_string string) bool
 	PEMBlock, _ := pem.Decode([]byte(pemPublicKey))
 	if PEMBlock == nil {
 		log.Fatal("Could not parse Public Key PEM")
+		return false
 	}
 	if PEMBlock.Type != "CERTIFICATE" {
 		fmt.Printf("%s\n", PEMBlock.Type)
 		log.Fatal("Found wrong key type")
+		return false
 	}
 
 	certificate, err := x509.ParseCertificate(PEMBlock.Bytes)
 	if err != nil {
 		log.Fatal(err)
+		return false
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(signature_64)
 
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
 
 	h := sha1.New()
@@ -120,25 +125,25 @@ func CheckSignature(certUrl string, signature_64 string, raw_string string) bool
 	err = rsa.VerifyPKCS1v15(pub, crypto.SHA1, h.Sum(nil), []byte(signature))
 	if err != nil {
 		log.Fatal(err)
+		return false
 	}
-
 
 	return true
 }
 
-func VerifyNotification(n Notification) {
+func VerifyNotification(n Notification) bool {
 	signString := fmt.Sprintf(`Message
 %v
 MessageId
 %v`, n.Message, n.MessageId)
 
 	if n.Subject != "" {
-		signString = signString + fmt.Sprintf(`
+		signString = signString+fmt.Sprintf(`
 Subject
 %v`, n.Subject)
 	}
 
-	signString = signString + fmt.Sprintf(`
+	signString = signString+fmt.Sprintf(`
 Timestamp
 %v
 TopicArn
@@ -147,11 +152,7 @@ Type
 %v
 `, n.Timestamp, n.TopicArn, n.Type)
 
-	certUrl := "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-d6d679a1d18e95c2f9ffcf11f4f9e198.pem"
-	signature := "br3KcAFiJ6+o4J3JOFtVo/84osp/i3UOh8SRwCoa95vhNyrxtCD/WDi/gxGUv0Kuh4Y5VQJcvzP/KOSCzYRS3jY2RNgV1unIso+FrE3PDFO9SLjF5mcUwReV7jwGSGEovC+lveew6jqas4/hboJGheZCiFCjFSNnW4FPx2iOXLcNMTp+6uHZGF2rwoB+FO2qyNuKQmRM4rAeKlOvC/yaoBIwVbjYpD4EPjnibLfZyV8CGua7uHLnano4fdZKsJ0L4oIwXWTI+e19WlmtipA+gkl152/oFX+wwqUjahTnnyOD3XDW6XxK1fiOJEquAhaUJVBhtZNyQI3SyC955Irz8g=="
-
-
-	fmt.Sprintln(CheckSignature(certUrl, signature, signString))
+	return CheckSignature(n.SigningCertURL, n.Signature, signString)
 }
 
 func TriggerJob(job_name string, n AutoScalingNotification) {
@@ -217,6 +218,12 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 
 		if _, err := http.Get(s); err != nil {
 			fmt.Printf("Subscribe error: %v\n", err)
+		}
+	} else {
+		if VerifyNotification(notif) != true {
+			fmt.Printf("%s\n", notif.Message)
+			fmt.Printf("Failed to verify signature")
+			http.Error(w, "Not Authorized", http.StatusBadRequest)
 		}
 	}
 
