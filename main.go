@@ -45,7 +45,7 @@ type AutoScalingNotification struct {
 	StatusMessage string `url:"StatusMessage"`
 	Progress int `url:"Progress"`
 	EC2InstanceId string `url:"EC2InstanceId"`
-	Details string `url:"Details"`
+	//Details string `url:"Details"`
 	Token string `url:"token"`
 }
 
@@ -117,7 +117,6 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(message_byte, &autoScalNotif)
 
 	if (err != nil) {
-
 		fmt.Printf("%s\n", notif.Message)
 		fmt.Println(err)
 		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
