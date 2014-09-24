@@ -12,6 +12,13 @@ import (
 	"strconv"
 	"io/ioutil"
 	"github.com/google/go-querystring/query"
+	"encoding/pem"
+	"crypto/x509"
+	"encoding/base64"
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha1"
+	"log"
 )
 
 type Notification struct {
@@ -65,6 +72,87 @@ func (h HipChatSender)SendMessage(room_id, message string) error {
   }
 
   return c.PostMessage(req)
+}
+
+
+func CheckSignature(certUrl string, signature_64 string, raw_string string) bool {
+
+	// This will use https and so verify that the certificate comes from Amazon
+	resp, err := http.Get(certUrl)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	defer resp.Body.Close()
+
+	pemPublicKey, _ := ioutil.ReadAll(resp.Body)
+	fmt.Printf("%s\n", string(pemPublicKey))
+
+	// Parse public key into rsa.PublicKey
+	PEMBlock, _ := pem.Decode([]byte(pemPublicKey))
+	if PEMBlock == nil {
+		log.Fatal("Could not parse Public Key PEM")
+		return false
+	}
+	if PEMBlock.Type != "CERTIFICATE" {
+		fmt.Printf("%s\n", PEMBlock.Type)
+		log.Fatal("Found wrong key type")
+		return false
+	}
+
+	certificate, err := x509.ParseCertificate(PEMBlock.Bytes)
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+
+	signature, err := base64.StdEncoding.DecodeString(signature_64)
+
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	h := sha1.New()
+	h.Write([]byte(raw_string))
+
+	// Verify
+	pub := certificate.PublicKey.(*rsa.PublicKey)
+
+	fmt.Println(certificate.Signature)
+
+	err = rsa.VerifyPKCS1v15(pub, crypto.SHA1, h.Sum(nil), []byte(signature))
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+
+	return true
+}
+
+func VerifyNotification(n Notification) bool {
+	signString := fmt.Sprintf(`Message
+%v
+MessageId
+%v`, n.Message, n.MessageId)
+
+	if n.Subject != "" {
+		signString = signString+fmt.Sprintf(`
+Subject
+%v`, n.Subject)
+	}
+
+	signString = signString+fmt.Sprintf(`
+Timestamp
+%v
+TopicArn
+%v
+Type
+%v
+`, n.Timestamp, n.TopicArn, n.Type)
+
+	return CheckSignature(n.SigningCertURL, n.Signature, signString)
 }
 
 func TriggerJob(job_name string, n AutoScalingNotification) {
@@ -130,6 +218,12 @@ func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 
 		if _, err := http.Get(s); err != nil {
 			fmt.Printf("Subscribe error: %v\n", err)
+		}
+	} else {
+		if VerifyNotification(notif) != true {
+			fmt.Printf("%s\n", notif.Message)
+			fmt.Printf("Failed to verify signature")
+			http.Error(w, "Not Authorized", http.StatusBadRequest)
 		}
 	}
 
