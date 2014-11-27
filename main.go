@@ -203,6 +203,16 @@ func TriggerJob(job_name string, n AutoScalingNotification) {
 func SnsJenkins(args martini.Params, w http.ResponseWriter, r *http.Request) {
 	job_name := args["job_name"]
 
+	// Debug purpose
+	bodyIo, errBody := ioutil.ReadAll(r.Body);
+
+	if errBody != nil {
+		fmt.Printf("Error when reading body : %s", errBody)
+	}
+
+	fmt.Printf("Body of the request: %s", bodyIo)
+	// end debug
+
 	var notif Notification
 	var autoScalNotif AutoScalingNotification
 
