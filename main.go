@@ -20,7 +20,12 @@ import (
 	"crypto/sha1"
 	"log"
 	"strings"
+	"regexp"
 )
+
+type Configuration struct {
+	Colors map[string]string
+}
 
 type Notification struct {
   Message string
@@ -61,13 +66,13 @@ type HipChatSender struct{
   AuthToken string
 }
 
-func (h HipChatSender)SendMessage(room_id, message string) error {
+func (h HipChatSender)SendMessage(room_id, message string, color string) error {
   c := hipchat.Client{AuthToken: h.AuthToken}
   req := hipchat.MessageRequest{
     RoomId:        room_id,
     From:          "Amazon SNS",
     Message:       message,
-    Color:         hipchat.ColorYellow,
+    Color:         color,
     MessageFormat: hipchat.FormatText,
     Notify:        true,
   }
@@ -285,7 +290,8 @@ func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h Hi
   }
 
   if len(n.Message) != 0 && len(n.Subject) != 0 {
-    err := h.SendMessage(room_id, fmt.Sprintf("%v: %v", n.Subject, n.Message))
+		color := ColorStyle(n.Subject)
+    err := h.SendMessage(room_id, fmt.Sprintf("%v: %v", n.Subject, n.Message), color)
     if err != nil {
       fmt.Printf("HipChat error: %v\n", err)
       http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -293,8 +299,36 @@ func ServeHTTP(args martini.Params, w http.ResponseWriter, r *http.Request, h Hi
   }
 }
 
+func ColorStyle(text string) string {
+	style := hipchat.ColorGray
+	for pattern, color := range config.Colors {
+		r, _ := regexp.Compile(pattern)
+		if r.MatchString(text) {
+			style = color
+			break
+		}
+	}
+		return style
+}
+
+func LoadConfiguration() Configuration {
+	file, err := os.Open("conf.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	decoder := json.NewDecoder(file)
+	configuration := Configuration{}
+	err = decoder.Decode(&configuration)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(configuration.Colors)
+	return configuration
+}
+
 var jenkins_token string
 var jenkins_url string
+var config Configuration
 
 func main() {
 	fmt.Println("Starting aws-sns proxy server.")
@@ -302,6 +336,7 @@ func main() {
 	h := HipChatSender{AuthToken: os.Getenv("HIPCHAT_AUTH_TOKEN")}
 	jenkins_token = os.Getenv("JENKINS_TOKEN")
 	jenkins_url = os.Getenv("JENKINS_URL")
+	config = LoadConfiguration()
 	m.Map(h)
 
 	m.Post("/sns/hipchat/:room_id", ServeHTTP)
