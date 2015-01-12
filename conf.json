@@ -1,0 +1,7 @@
+{
+  "Colors": {
+    "\\[INFO\\]": "gray",
+    "\\[WARNING\\]": "yellow",
+    "\\[BLOCKER\\]": "red"
+  }
+}
