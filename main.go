@@ -28,6 +28,7 @@ type HipChatSender struct{
 
 func (h HipChatSender)SendMessage(room_id, message string) error {
   c := hipchat.Client{AuthToken: h.AuthToken}
+  c.BaseURL = "https://api.hipchat.com/v1"
   req := hipchat.MessageRequest{
     RoomId:        room_id,
     From:          "Amazon SNS",
