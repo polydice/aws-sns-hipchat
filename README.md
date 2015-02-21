@@ -1,6 +1,8 @@
 aws-sns-hipchat
 ===============
 
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
 A simple AWS SNS HTTP(s) endpoint to send notification to HipChat chatroom. 
 
 ## Features
@@ -14,7 +16,11 @@ The HTTP(s) API is `http://aws-sns-hipchat.herokuapp.com/ROOM_ID`, which could b
 
 ## Heroku Deployment
 
-[kr/heroku-buildpack-go](https://github.com/kr/heroku-buildpack-go) is used for running this project on Heroku, to create Heorku app with the build pack: 
+"Deploy to Heroku" button on the top of this README file is recommended way to set up this app to [Heroku](https://www.heroku.com/).
+
+However, if you want to deploy it manually, [kr/heroku-buildpack-go](https://github.com/kr/heroku-buildpack-go) is used for running this project on Heroku.
+
+To create Heorku app with the build pack:
 
 ```bash
 heroku create -b https://github.com/kr/heroku-buildpack-go.git
