@@ -1,0 +1,17 @@
+{
+  "name": "aws-sns-hipchat",
+  "description": "A simple AWS SNS HTTP(s) endpoint to send notification to HipChat chatroom.",
+  "keywords": [
+    "AWS",
+    "SNS",
+    "HipChat"
+  ],
+  "website": "https://github.com/polydice/aws-sns-hipchat",
+  "repository": "https://github.com/polydice/aws-sns-hipchat",
+  "env": {
+    "BUILDPACK_URL": "https://github.com/kr/heroku-buildpack-go.git",
+    "HIPCHAT_AUTH_TOKEN": {
+      "description": "The API auth token for your HipChat account"
+    }
+  }
+}
